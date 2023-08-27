@@ -1,165 +1,103 @@
-#Data Preprocessing
-
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns 
-
-dataset = pd.read_csv('C:\\Users\\DELL\\Prog\\templates\\Data science projects\\breast-cancer-detection\\data\\data.csv')
-dataset.head()
-dataset.select_dtypes(include='object').columns
-len(dataset.select_dtypes(include='object').columns)
-dataset.select_dtypes(include=['float','int']).columns
-len(dataset.select_dtypes(include=['float','int']).columns)
-
-
-#stats 
-
-dataset.describe()
-dataset.columns
-
-#dealing with missing values
-
-dataset.isnull().values.any()
-dataset.isnull().values.sum()
-dataset.columns[dataset.isnull().any()]
-len(dataset.columns[dataset.isnull().any()])
-dataset = dataset.drop(columns='Unnamed: 32')
-dataset.shape
-
-#checking categorical data
-
-dataset['diagnosis'].unique()
-
-dataset['diagnosis'].nunique()
-
-dataset = pd.get_dummies(data=dataset, drop_first = True) #ERRORS TRUE AND FALSE INSTEAD OF 1 and O
-dataset.head()
-dataset['diagnosis_M'] = dataset['diagnosis_M'].astype(int)
-
-#countplot
-
-print(dataset['diagnosis_M'].value_counts())
-sns.countplot(x=dataset['diagnosis_M'], order=[0,1])
-
-#sns.countplot(data = dataset['diagnosis_M'], order=[0,1], label='Count') ERROR
-
-#sns.countplot(dataset['diagnosis_M'], label = 'Count')   #errors
-plt.show()
-
-dataset['diagnosis_M'].value_counts()
-
-
-#correlation matrix and heat map 
-
-dataset_2 = dataset.drop(columns='diagnosis_M')
-dataset_2
-
-##dataset_2.corrwith(dataset['diagnosis_M']).plot.bar(
-##    figsize = (20,10), title = 'correlation with diagnosis_M', rot = 45, grid = True
-#)
-
-dataset_2.corrwith(dataset['diagnosis_M']).plot.bar(figsize = (20,10), title = 'correlation with diagnosis_M', rot = 45, grid = True)
-plt.show()
-
-
-#Correlation Matrix 
-
-corr = dataset.corr()
-corr
-
-#heatmap
-
-plt.figure(figsize=(20,10))
-sns.heatmap(corr,annot=True)
-plt.show()
-
-
-#split of data
-
-#matrix of features
-
-x = dataset.iloc[:,1:-1].values
-x.shape
-
-y = dataset.iloc[:,-1].values
-y.shape
-
-#split
-
-from sklearn.model_selection import train_test_split
-x_train,x_test, y_train, y_test = train_test_split(x,y,test_size=0.2,random_state=0)
-x_train.shape
-x_test.shape
-y_train.shape
-y_test.shape
-
-#Feature Scaling
-
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
-sc = StandardScaler()
-
-x_train = sc.fit_transform(x_train)    #DIDNT UNDERSTAND
-x_test = sc.transform(x_test)
-
-
-#logistic regression
-
 from sklearn.linear_model import LogisticRegression
-classifier_lr = LogisticRegression(random_state=0)
-classifier_lr.fit(x_train,y_train)
-y_pred = classifier_lr.predict(x_test)
-
-from sklearn.metrics import accuracy_score, confusion_matrix,f1_score,precision_score,recall_score
-acc = accuracy_score(y_test,y_pred)
-f1 = f1_score(y_test,y_pred)
-prec = precision_score(y_test,y_pred)
-rec = recall_score(y_test,y_pred)
-
-results = pd.DataFrame([['Logistic regression',acc,f1,prec,rec]], columns = ['Model','Accuracy','F1 score','Precision','Recall'])
-results
-
-cm = confusion_matrix(y_test,y_pred)
-cm
-
-
-#cross validation
-
-from sklearn.model_selection import cross_val_score
-
-accuracies = cross_val_score(estimator=classifier_lr, X = x_train, y = y_train, cv = 10)
-acc1 = (accuracies.mean())*100
-sd  = accuracies.std()*100
-sd
-acc1
-
-#Random Forest
-
 from sklearn.ensemble import RandomForestClassifier
-classifier_rm = RandomForestClassifier(random_state=0)
-classifier_rm.fit(x_train,y_train)
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score
 
-y_pred = classifier_rm.predict(x_test)
+def load_data(file_path):
+    try:
+        data = pd.read_csv(file_path)
+        return data
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return None
 
-from sklearn.metrics import accuracy_score, confusion_matrix,f1_score,precision_score,recall_score
-acc = accuracy_score(y_test,y_pred)
-f1 = f1_score(y_pred,y_pred)
-prec = precision_score(y_pred,y_pred)
-rec = recall_score(y_pred,y_pred)
+def handle_missing_data(df):
+    df = df.drop(columns='Unnamed: 32', errors='ignore')
+    return df
 
-model_results = pd.DataFrame([['Random Forest',acc,f1,prec,rec]], columns = ['Model','Accuracy','F1 score','Precision','Recall'])
-#results = results.append(model_results,index = True) - -- giving error
-results = pd.concat([results, model_results], ignore_index=True)
-results
+def encode_categorical_data(df, column_name):
+    try:
+        df = pd.get_dummies(data=df, columns=[column_name], drop_first=True)
+        df[f'{column_name}_M'] = df[f'{column_name}_M'].astype(int)
+    except KeyError:
+        print(f"Column {column_name} not found!")
+    return df
 
-cm = confusion_matrix(y_test,y_pred)
-cm
-from sklearn.model_selection import cross_val_score
+def plot_count(data):
+    plt.figure()
+    sns.countplot(x=data)
+    plt.show()
 
-accuracies = cross_val_score(estimator=classifier_rm, X = x_train, y = y_train, cv = 10)
-acc1 = (accuracies.mean())*100
-sd  = accuracies.std()*100
-sd
-acc1
+def plot_correlation(df, target_column):
+    correlations = df.drop(columns=target_column).corrwith(df[target_column])
+    plt.figure(figsize=(20,10))
+    correlations.plot.bar(title='Correlation with Diagnosis', rot=45, grid=True)
+    plt.show()
 
+def plot_heatmap(df):
+    corr = df.corr()
+    plt.figure(figsize=(20,10))
+    sns.heatmap(corr, annot=True)
+    plt.show()
+
+def split_data(df, target_column):
+    X = df.drop(columns=target_column).values
+    y = df[target_column].values
+    return train_test_split(X, y, test_size=0.2, random_state=0)
+
+def scale_features(X_train, X_test):
+    sc = StandardScaler()
+    X_train_scaled = sc.fit_transform(X_train)
+    X_test_scaled = sc.transform(X_test)
+    return X_train_scaled, X_test_scaled
+
+def train_and_evaluate_model(classifier, X_train, y_train, X_test, y_test):
+    classifier.fit(X_train, y_train)
+    y_pred = classifier.predict(X_test)
+    
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+
+    return acc, f1, prec, rec, y_pred
+
+def cross_validate_model(classifier, X_train, y_train):
+    accuracies = cross_val_score(estimator=classifier, X=X_train, y=y_train, cv=10)
+    mean_acc = accuracies.mean() * 100
+    std_dev = accuracies.std() * 100
+    return mean_acc, std_dev
+
+if __name__ == "__main__":
+    file_path = 'C:\\Users\\DELL\\Prog\\templates\\Data science projects\\breast-cancer-detection\\data\\data.csv'
+    
+    data = load_data(file_path)
+    if data is not None:
+        data = handle_missing_data(data)
+        data = encode_categorical_data(data, 'diagnosis')
+        
+        plot_count(data['diagnosis_M'])
+        plot_correlation(data, 'diagnosis_M')
+        plot_heatmap(data)
+
+        X_train, X_test, y_train, y_test = split_data(data, 'diagnosis_M')
+        X_train, X_test = scale_features(X_train, X_test)
+        
+        # Logistic Regression
+        classifier_lr = LogisticRegression(random_state=0)
+        acc, f1, prec, rec, y_pred_lr = train_and_evaluate_model(classifier_lr, X_train, y_train, X_test, y_test)
+        print(f"Logistic Regression Results: Accuracy={acc}, F1={f1}, Precision={prec}, Recall={rec}")
+        mean_acc, std_dev = cross_validate_model(classifier_lr, X_train, y_train)
+        print(f"Cross Validation Results for Logistic Regression: Mean Accuracy={mean_acc}, Standard Deviation={std_dev}")
+
+        # Random Forest
+        classifier_rm = RandomForestClassifier(random_state=0)
+        acc, f1, prec, rec, y_pred_rf = train_and_evaluate_model(classifier_rm, X_train, y_train, X_test, y_test)
+        print(f"Random Forest Results: Accuracy={acc}, F1={f1}, Precision={prec}, Recall={rec}")
+        mean_acc, std_dev = cross_validate_model(classifier_rm, X_train, y_train)
+        print(f"Cross Validation Results for Random Forest: Mean Accuracy={mean_acc}, Standard Deviation={std_dev}")
